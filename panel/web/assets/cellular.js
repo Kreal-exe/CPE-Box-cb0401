@@ -560,3 +560,126 @@ window.addEventListener('hashchange', () => {
   if (location.hash === '#cellular' && $('#smscCurrent').textContent === '—') readSMSC();
 });
 if (location.hash === '#cellular') setTimeout(readSMSC, 800);
+
+// ---------------------------------------------------------- own number ---
+
+on('cellular', c => { if (c) setText('simNumCurrent', c.sim_number || 'not stored'); });
+
+$('#simNumBtn').addEventListener('click', async e => {
+  const num = ($('#simNumNew').value || '').replace(/[\s()-]/g, '');
+  if (!/^\+\d{6,20}$/.test(num)) return setMsg('simNumMsg', 'International format with +, like +381601234567', 'err');
+  if (!confirm(`Write ${num} to the SIM as its own number?`)) return;
+  try {
+    await withBusy(e.currentTarget, async () => {
+      const d = await api('/api/sim-number', { number: num });
+      setText('simNumCurrent', d.number || num);
+      $('#simNumNew').value = '';
+      setMsg('simNumMsg', 'Written to the SIM', 'ok');
+      refresh('cellular');
+    });
+  } catch (err) {
+    setMsg('simNumMsg', err.message, 'err');
+  }
+});
+
+// ----------------------------------------------------------- cell lock ---
+
+const Lock = { serving: {} };
+
+function lockLteRow(c) {
+  const row = document.createElement('div');
+  row.className = 'lock-row';
+  row.innerHTML = `<input type="number" class="lk-earfcn" min="1" placeholder="EARFCN" aria-label="EARFCN" value="${c ? c.earfcn : ''}">
+    <input type="number" class="lk-pci" min="0" max="503" placeholder="PCI" aria-label="PCI" value="${c ? c.pci : ''}">
+    <button class="ghost small" type="button" aria-label="Remove">${icon('trash')}</button>`;
+  $('button', row).addEventListener('click', () => row.remove());
+  $('#lockLte').appendChild(row);
+}
+
+function renderLock(d) {
+  Lock.serving = { lte: d.serving_lte, nr: d.serving_nr };
+  const lte = arr(d.lte), nr = d.nr;
+  const pill = $('#lockPill');
+  const n = lte.length + (nr ? 1 : 0);
+  pill.className = 'pill ' + (n ? 'warn' : 'good');
+  pill.textContent = n ? `Locked · ${[lte.length ? lte.length + ' LTE' : '', nr ? '5G' : ''].filter(Boolean).join(' + ')}` : 'Not locked';
+  $('#lockLte').innerHTML = '';
+  lte.forEach(lockLteRow);
+  $('#lockNrPci').value = nr ? nr.pci : '';
+  $('#lockNrArfcn').value = nr ? nr.arfcn : '';
+  $('#lockNrScs').value = nr ? String(nr.scs) : '15';
+  $('#lockNrBand').value = nr ? nr.band : '';
+  $('#lockPersist').checked = !!d.persist;
+  $('#lockLteCur').disabled = !d.serving_lte;
+  $('#lockNrCur').disabled = !d.serving_nr;
+  const cur = [d.serving_lte && `LTE ${d.serving_lte.earfcn}/${d.serving_lte.pci}`,
+    d.serving_nr && `5G n${d.serving_nr.band} ${d.serving_nr.arfcn}/${d.serving_nr.pci}`].filter(Boolean);
+  setMsg('lockMsg', cur.length ? 'On now: ' + cur.join(' · ') : 'No serving cell reported right now.');
+}
+
+async function readLock() {
+  try {
+    renderLock(await api('/api/cell-lock'));
+  } catch (err) {
+    setMsg('lockMsg', err.message, 'err');
+  }
+}
+
+$('#lockLteAdd').addEventListener('click', () => {
+  if ($$('#lockLte .lock-row').length >= 10) return toast('The modem takes at most 10 LTE cells', 'err');
+  lockLteRow(null);
+});
+$('#lockLteCur').addEventListener('click', () => {
+  const s = Lock.serving.lte;
+  if (!s) return;
+  if ($$('#lockLte .lock-row').some(r => $('.lk-earfcn', r).value == s.earfcn && $('.lk-pci', r).value == s.pci)) return;
+  lockLteRow(s);
+});
+$('#lockNrCur').addEventListener('click', () => {
+  const s = Lock.serving.nr;
+  if (!s) return;
+  $('#lockNrPci').value = s.pci;
+  $('#lockNrArfcn').value = s.arfcn;
+  $('#lockNrScs').value = String(s.scs);
+  $('#lockNrBand').value = s.band;
+});
+$('#lockNrClear').addEventListener('click', () => {
+  ['#lockNrPci', '#lockNrArfcn', '#lockNrBand'].forEach(id => { $(id).value = ''; });
+});
+
+async function applyLock(btn, body, what) {
+  setMsg('lockMsg', 'Applying - the modem may reconnect…');
+  try {
+    await withBusy(btn, async () => {
+      renderLock(await api('/api/cell-lock', body));
+      toast(what);
+      setTimeout(() => refresh('cellular'), 5000);
+    });
+  } catch (err) {
+    setMsg('lockMsg', err.message, 'err');
+  }
+}
+
+$('#lockApply').addEventListener('click', e => {
+  const rows = $$('#lockLte .lock-row').map(r => [$('.lk-earfcn', r).value, $('.lk-pci', r).value])
+    .filter(([e, p]) => e !== '' || p !== '');
+  if (rows.some(([e, p]) => e === '' || p === '')) return setMsg('lockMsg', 'Every LTE cell needs an EARFCN and a PCI', 'err');
+  const lte = rows.map(([e, p]) => ({ earfcn: +e, pci: +p }));
+  const f = ['#lockNrPci', '#lockNrArfcn', '#lockNrBand'].map(id => $(id).value);
+  let nr = null;
+  if (f.some(Boolean)) {
+    if (!f.every(Boolean)) return setMsg('lockMsg', 'The 5G lock needs PCI, ARFCN and band', 'err');
+    nr = { pci: +f[0], arfcn: +f[1], scs: +$('#lockNrScs').value, band: +f[2] };
+  }
+  if (!lte.length && !nr) return setMsg('lockMsg', 'Add a cell first - or use Unlock all', 'err');
+  if (!confirm('Lock the modem to these cells? If none of them is reachable you have no mobile service until you unlock.')) return;
+  applyLock(e.currentTarget, { lte, nr, persist: $('#lockPersist').checked }, 'Cell lock applied');
+});
+$('#lockClearAll').addEventListener('click', e => {
+  applyLock(e.currentTarget, { lte: [], nr: null, persist: false }, 'Cell lock removed');
+});
+
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#cellular' && $('#lockPill').textContent === '—') readLock();
+});
+if (location.hash === '#cellular') setTimeout(readLock, 1200);

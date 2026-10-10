@@ -51,7 +51,11 @@ function Ensure-GuiBin {
     if (Test-Go) {
         Write-Host 'Building CPE Box from source...'
         Push-Location $FetchDir
-        & go build -o $bin . | Out-Host
+        # Stamp the version from the git tag, the same way build.sh does for
+        # releases, so the panel doesn't show the placeholder version.
+        $ver = (& git describe --tags --always 2>$null)
+        if ($ver) { $ver = $ver.Trim() -replace '^v', '' } else { $ver = 'dev' }
+        & go build -ldflags="-X main.appVersion=$ver" -o $bin . | Out-Host
         $ok = $LASTEXITCODE -eq 0
         Pop-Location
         if ($ok) { return $true }

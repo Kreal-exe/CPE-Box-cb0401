@@ -2,6 +2,11 @@
 panel/router_key
 panel/router_key.pub
 panel/.env
+# the panel's own HTTPS certificate + private key (tls.go makes them on first run)
+panel/panel_cert.pem
+panel/panel_key.pem
+# local test copies of the panel binary and keys
+/gui/
 
 # Go build output
 panel/cpe-box

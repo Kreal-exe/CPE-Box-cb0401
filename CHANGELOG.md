@@ -14,6 +14,22 @@ Because the notes live in this file, Markdown headings work as-is — no
 `--cleanup=verbatim` needed on the tag. Everything up to the next `## vX.Y.Z`
 heading belongs to a version; use `##` for the subsections within it.
 
+## v1.0.10 — speed test with a live gauge, SIM contacts, ping & traceroute, cell lock, RSSI, own number on the SIM
+
+## New
+
+- **Speed test** (Router tab), with a speedtest.net-style gauge that moves while it runs. It picks the nearest Ookla server the way speedtest.net does and runs 16 parallel streams from the computer the panel runs on, through the router - so it's the mobile link that's measured. Results match speedtest.net within a few percent (473 / 116 Mbit/s against 446-498 / 103 on the same line). It stops as soon as the reading settles (5-10 s per direction), which roughly halves the data a fixed-length test uses. A test started on one device shows live on every open panel. (A first version ran on the router itself; that can't work above ~300 Mbit/s because the router's own traffic isn't hardware-offloaded.)
+- **Contacts** - a new tab: the SIM card's phonebook. Search, add, edit and delete (one, or **Select** several / all at once), **import a .vcf** (vCard 2.1/3.0/4.0, from a phone, Google or Apple Contacts) and **export** all as .vcf. Names are stored as UCS2, so umlauts and Cyrillic survive. Senders in **Messages** now show their contact name, and a contact has a **Message** button.
+- **Ping & traceroute** (Router tab), from the router, with 8.8.8.8 / 1.1.1.1 / 9.9.9.9 shortcuts. On IPv6-only APNs with 464XLAT (WAN `192.0.0.x`) traceroute hops don't answer; the panel says so instead of leaving a wall of `*`.
+- **Cell lock / tower lock** (Cellular tab). Lock LTE to up to 10 EARFCN + PCI pairs and 5G to one PCI / ARFCN / SCS / band through `AT+QNWLOCK`, with "use current cell" buttons. Off by default after a reboot (a safe way to try a lock); "Keep after a reboot" stores it in the modem.
+- **HTTPS on port 443.** Chrome's "Always use secure connections" tries `https://cpe.box` first and, with nobody on 443, stops at a full-page "This site doesn't support a secure connection" warning. The panel now serves itself over HTTPS too, with its own certificate (self-signed, generated once and kept next to `.env`, so the browser's one-time certificate prompt doesn't come back after a restart). `GUI_TLS_PORT=off` disables it.
+- **RSSI** next to RSRP / RSRQ / SINR on the Overview signal card.
+- **Phone number on the SIM** (Cellular tab). Some operators leave the SIM's own number empty, so neither the stock UI nor the panel can show it. It can now be written to the SIM (EF_MSISDN through `AT+CRSM`; the RG520N has no `ON` phonebook). The Overview shows an "Add →" link when the number is missing.
+
+## Fixes
+
+- **The panel showed "v1.0.1-dev"** when `start.sh` built it from source (with Go installed): only release builds stamped the version. Source builds now take it from the git tag too (`1.0.10`, or `1.0.10-3-gabc1234` on a newer commit).
+
 ## v1.0.9 — LTE only that works, SIM PIN dialog, real live speed, SMS centre, full stock/AT audit
 
 ## Fixes

@@ -82,6 +82,7 @@ const Sources = {
   autopin:  { url: '/api/stock?a=autopin', every: 120000 },
   simstatus: { url: '/api/stock?a=simstatus', every: 15000 },
   sms:      { url: '/api/stock?a=sms',     every: 30000 },
+  contacts: { url: '/api/contacts',        every: 300000 },
   lan:      { url: '/api/stock?a=lan',     every: 300000 },
   dhcp:     { url: '/api/stock?a=dhcp',    every: 300000 },
   upnp:     { url: '/api/stock?a=upnp',    every: 60000 },
@@ -152,6 +153,7 @@ const Q = {
   rsrp: { min: -125, max: -70, steps: [-80, -90, -100] },
   rsrq: { min: -22, max: -5, steps: [-10, -15, -20] },
   snr:  { min: -5, max: 30, steps: [20, 13, 0] },
+  rssi: { min: -110, max: -50, steps: [-65, -75, -85] },
 };
 const Q_LABELS = [['q-good', 'Excellent'], ['q-ok', 'Good'], ['q-fair', 'Fair'], ['q-poor', 'Poor']];
 
@@ -267,7 +269,12 @@ function toggleTheme() {
 const Views = {};
 let currentView = null;
 
+// The hash may carry a query (#messages?to=+49...), handed to the view.
+let viewQuery = new URLSearchParams();
 function showView(name) {
+  const q = name.indexOf('?');
+  viewQuery = new URLSearchParams(q >= 0 ? name.slice(q + 1) : '');
+  if (q >= 0) name = name.slice(0, q);
   if (!Views[name]) name = 'overview';
   currentView = name;
   $$('.view').forEach(v => { v.hidden = v.id !== 'v-' + name; });

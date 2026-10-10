@@ -20,8 +20,10 @@ import (
 	"time"
 )
 
-// appVersion is overridden at release build time (-ldflags -X main.appVersion=...).
-var appVersion = "1.0.1-dev"
+// appVersion is set at build time (-ldflags -X main.appVersion=...): from the
+// tag by build.sh for releases, from git describe by fetch.sh/fetch.ps1 when
+// start.sh builds from source. "dev" only for a bare go build.
+var appVersion = "dev"
 
 //go:embed web
 var webFS embed.FS
@@ -216,6 +218,128 @@ func handleSMSC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, res)
+}
+
+func handleSIMNumber(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Number string `json:"number"`
+	}
+	decodeBody(r, &body)
+	res, err := setSIMNumber(body.Number)
+	if err != nil {
+		errResp(w, err)
+		return
+	}
+	ok(w, res)
+}
+
+func handleCellLock(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		var body struct {
+			LTE     []lteCell `json:"lte"`
+			NR      *nrCell   `json:"nr"`
+			Persist bool      `json:"persist"`
+		}
+		decodeBody(r, &body)
+		res, err := setCellLock(body.LTE, body.NR, body.Persist)
+		invalidate("cellular")
+		if err != nil {
+			errResp(w, err)
+			return
+		}
+		ok(w, res)
+		return
+	}
+	res, err := getCellLock()
+	if err != nil {
+		errResp(w, err)
+		return
+	}
+	ok(w, res)
+}
+
+func handleDiag(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Tool string `json:"tool"`
+		Host string `json:"host"`
+	}
+	decodeBody(r, &body)
+	res, err := runDiag(body.Tool, body.Host)
+	if err != nil {
+		errResp(w, err)
+		return
+	}
+	ok(w, res)
+}
+
+func handleContacts(w http.ResponseWriter, r *http.Request) {
+	switch r.URL.Query().Get("a") {
+	case "save":
+		var body struct {
+			Index  int    `json:"index"`
+			Name   string `json:"name"`
+			Number string `json:"number"`
+		}
+		decodeBody(r, &body)
+		c, err := saveContact(body.Index, body.Name, body.Number)
+		if err != nil {
+			errResp(w, err)
+			return
+		}
+		ok(w, c)
+	case "delete":
+		var body struct {
+			Index   int   `json:"index"`
+			Indexes []int `json:"indexes"`
+		}
+		decodeBody(r, &body)
+		if len(body.Indexes) > 0 {
+			failed, err := deleteContacts(body.Indexes)
+			if err != nil {
+				errResp(w, err)
+				return
+			}
+			ok(w, map[string]int{"deleted": len(body.Indexes) - failed, "failed": failed})
+			return
+		}
+		if err := deleteContact(body.Index); err != nil {
+			errResp(w, err)
+			return
+		}
+		ok(w, map[string]int{"deleted": 1, "failed": 0})
+	case "import":
+		var body struct {
+			VCF string `json:"vcf"`
+		}
+		decodeBody(r, &body)
+		list := parseVCF(body.VCF)
+		if len(list) == 0 {
+			errResp(w, fmt.Errorf("No contacts with a phone number found in that file"))
+			return
+		}
+		res, err := importContacts(list)
+		if err != nil {
+			errResp(w, err)
+			return
+		}
+		ok(w, res)
+	case "export":
+		v, err := cached("contacts", 30*time.Second, func() (any, error) { return getContacts() })
+		if err != nil {
+			errResp(w, err)
+			return
+		}
+		w.Header().Set("Content-Type", "text/vcard; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="sim-contacts.vcf"`)
+		_, _ = w.Write([]byte(contactsVCF(v.(map[string]any)["contacts"].([]contact))))
+	default:
+		v, err := cached("contacts", 30*time.Second, func() (any, error) { return getContacts() })
+		if err != nil {
+			errResp(w, err)
+			return
+		}
+		ok(w, v)
+	}
 }
 
 func handleBands(w http.ResponseWriter, r *http.Request) {
@@ -597,6 +721,11 @@ func main() {
 	mux.HandleFunc("/api/sa", requireMethod(http.MethodPost, handleSA))
 	mux.HandleFunc("/api/smsc", handleSMSC)
 	mux.HandleFunc("/api/bands", requireMethod(http.MethodPost, handleBands))
+	mux.HandleFunc("/api/sim-number", requireMethod(http.MethodPost, handleSIMNumber))
+	mux.HandleFunc("/api/contacts", handleContacts)
+	mux.HandleFunc("/api/cell-lock", handleCellLock)
+	mux.HandleFunc("/api/diag", requireMethod(http.MethodPost, handleDiag))
+	mux.HandleFunc("/api/speedtest", handleSpeedTest)
 	mux.HandleFunc("/api/wifi", requireMethod(http.MethodPost, handleWifi))
 	mux.HandleFunc("/api/uci-dump", handleUciDump)
 	mux.HandleFunc("/api/ssh-info", handleSSHInfo)
@@ -630,6 +759,7 @@ func main() {
 	handler := withSecurity(mux)
 	if !isLoopbackBind(guiAddr) {
 		listenWebPort(handler)
+		listenTLSPort(handler)
 		go keepLanHostnameCurrent()
 		fmt.Printf("  on your network:  http://%s%s", lanHostname(), portSuffix())
 		if ip, err := localIPTowardRouter(); err == nil {

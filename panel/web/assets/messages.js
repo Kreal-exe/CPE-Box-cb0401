@@ -2,7 +2,19 @@
 // Messages: the SIM's SMS inbox, conversations, sending and deleting,
 // through the stock SMS actions.
 
-Views.messages = { sources: ['sms'], show() { if (Sms.peer) loadThread(); } };
+Views.messages = { sources: ['sms', 'contacts'], show() {
+  const to = viewQuery.get('to');
+  if (to) { history.replaceState(null, '', '#messages'); composeTo(to); }
+  else if (Sms.peer) loadThread();
+} };
+
+// SIM contacts give senders a name; the list re-renders when they arrive.
+function contactName(num) {
+  const n = String(num).replace(/[\s()-]/g, '');
+  const c = arr(Sources.contacts.data?.contacts).find(x => x.number === n || (n.length > 6 && x.number.endsWith(n.slice(-9))));
+  return c ? c.name : null;
+}
+on('contacts', () => { if (Sources.sms.data) publish('sms', Sources.sms.data); });
 
 // stock message state bits: 8 received, 4 sent, 2 draft, 1 read. Opening a
 // conversation (get_dialog_msg) marks it read, as on the stock page.
@@ -14,7 +26,7 @@ const Sms = { peer: null, peerRaw: null, lastId: null, composing: false };
 // Senders like "Telekom" can't be replied to - only real numbers can.
 const canReply = p => /^\+?\d{3,20}$/.test(String(p).replace(/[\s()-]/g, ''));
 // Some SIM sender names carry a byte that isn't valid text; show it without.
-const peerName = p => String(p).replace(/\uFFFD/g, '').trim() || 'Unknown sender';
+const peerName = p => contactName(p) || String(p).replace(/\uFFFD/g, '').trim() || 'Unknown sender';
 
 function fmtSmsDate(m) {
   if (!m.timestamp) return m.date || '';
@@ -57,6 +69,7 @@ function openThread(peer, id, raw) {
   $('#smsForm').hidden = !reply;
   smsHint(reply ? '' : "This sender doesn't accept replies.");
   setText('smsPeer', peerName(peer));
+  $('#smsPeer').title = String(peer);
   $$('.sms-item').forEach(el => el.classList.toggle('active', el.dataset.peer === peer));
   loadThread();
 }
@@ -97,6 +110,15 @@ $('#smsList').addEventListener('keydown', e => {
   const it = e.target.closest('.sms-item');
   if (it && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openThread(it.dataset.peer, it.dataset.id, it.dataset.raw); }
 });
+
+function composeTo(to) {
+  const n = to.replace(/[\s()-]/g, '');
+  const row = arr(Sources.sms.data?.msgbox).find(m => String(m.contact_phone).replace(/[\s()-]/g, '') === n);
+  if (row) return openThread(row.contact_phone, row.msg_id, row.contact_phone_b64);
+  $('#smsNewBtn').click();
+  $('#smsTo').value = to;
+  $('#smsText').focus();
+}
 
 $('#smsNewBtn').addEventListener('click', () => {
   Sms.peer = null;

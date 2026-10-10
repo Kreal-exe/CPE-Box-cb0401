@@ -1,5 +1,5 @@
 name: CPE Box
-version: "1.0.9"
+version: "1.0.10"
 slug: cpe_box
 description: Local panel for the Xiaomi CB0401 / CB0401V2 5G CPE, driven over SSH to the router. Opens on port 7777.
 url: https://github.com/Kreal-exe/CPE-Box-cb0401

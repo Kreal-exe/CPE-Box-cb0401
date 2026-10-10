@@ -22,6 +22,9 @@
   <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-5-6-5M12 19h8"/></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+  <symbol id="i-contacts" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><circle cx="12" cy="10" r="2.6"/><path d="M7.5 17.5a4.5 4.5 0 0 1 9 0M2 8h2M2 12h2M2 16h2"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
   <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
@@ -74,6 +77,7 @@
   <a href="#overview"><svg class="i"><use href="#i-home"/></svg>Overview</a>
   <a href="#cellular"><svg class="i"><use href="#i-signal"/></svg>Cellular</a>
   <a href="#messages"><svg class="i"><use href="#i-msg"/></svg>Messages<span class="count" id="unreadCount" hidden></span></a>
+  <a href="#contacts"><svg class="i"><use href="#i-contacts"/></svg>Contacts</a>
   <a href="#wifi"><svg class="i"><use href="#i-wifi"/></svg>Wi-Fi</a>
   <a href="#devices"><svg class="i"><use href="#i-devices"/></svg>Devices<span class="count" id="untrustedCount" hidden></span></a>
   <a href="#network"><svg class="i"><use href="#i-net"/></svg>Network</a>
@@ -236,6 +240,33 @@
         </form>
       </div>
 
+      <div class="card">
+        <div class="card-h"><div class="ico amber"><svg class="i"><use href="#i-lock"/></svg></div><h2>Cell lock</h2><span class="sub">tower lock</span>
+          <div class="right"><span class="pill" id="lockPill">—</span></div></div>
+        <p class="lead">Pin the modem to specific towers, e.g. the one with the best signal. If a locked cell goes away the modem has no service until you unlock it here.</p>
+        <div class="section-label">LTE <span>EARFCN + PCI, up to 10 cells</span></div>
+        <div id="lockLte"></div>
+        <div class="actions" style="margin-top:6px">
+          <button class="small" type="button" id="lockLteAdd"><svg class="i"><use href="#i-plus"/></svg>Add cell</button>
+          <button class="small" type="button" id="lockLteCur">Use current LTE cell</button>
+        </div>
+        <div class="section-label" style="margin-top:16px">5G NR <span>mostly takes effect in SA</span></div>
+        <div class="two lock-nr">
+          <label class="field">PCI<input type="number" id="lockNrPci" min="0" max="1007" placeholder="e.g. 774"></label>
+          <label class="field">ARFCN<input type="number" id="lockNrArfcn" min="1" placeholder="e.g. 431070"></label>
+          <label class="field">SCS<select id="lockNrScs"><option value="15">15 kHz</option><option value="30">30 kHz</option><option value="60">60 kHz</option><option value="120">120 kHz</option></select></label>
+          <label class="field">Band<input type="number" id="lockNrBand" min="1" max="512" placeholder="e.g. 78"></label>
+        </div>
+        <div class="actions" style="margin-top:6px"><button class="small" type="button" id="lockNrCur">Use current 5G cell</button><button class="small ghost" type="button" id="lockNrClear">Clear</button></div>
+        <div class="toggle-row" style="border-top:1px solid var(--border);margin-top:12px"><div class="t"><b>Keep after a reboot</b><small>Off: a reboot unlocks everything again - a safe way to try a lock</small></div>
+          <label class="switch"><input type="checkbox" id="lockPersist"><span></span></label></div>
+        <div class="dirty-bar">
+          <span class="msg" id="lockMsg">Current serving cells are read from the modem.</span>
+          <button id="lockClearAll">Unlock all</button>
+          <button class="primary" id="lockApply">Apply lock</button>
+        </div>
+      </div>
+
       </div>
       <div class="span-5 stack">
       <div class="card">
@@ -278,6 +309,17 @@
       </div>
 
       <div class="card">
+        <div class="card-h"><div class="ico cyan"><svg class="i"><use href="#i-phone"/></svg></div><h2>Phone number</h2><span class="sub">stored on the SIM</span></div>
+        <p class="lead">Some operators don't store the number on the SIM, so the router can't show it. Write it once here - the panel and the stock web UI both read it from the SIM.</p>
+        <div class="kv"><span class="k">On the SIM</span><span class="v" id="simNumCurrent">—</span></div>
+        <label class="field" style="margin-top:12px">Your number<input type="text" id="simNumNew" inputmode="tel" maxlength="24" placeholder="+381601234567" autocomplete="off"></label>
+        <div class="actions" style="margin-top:10px">
+          <button class="primary" id="simNumBtn">Write to SIM</button>
+          <span class="msg" id="simNumMsg">Only a label - calls and SMS don't depend on it.</span>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-h"><div class="ico"><svg class="i"><use href="#i-key"/></svg></div><h2>IMEI</h2><span class="sub">advanced · modifies modem</span></div>
         <div class="note warn"><svg class="i"><use href="#i-alert"/></svg><span>Changing the IMEI rewrites the modem's identifier and is <b>not reversible</b> to the factory default — the previous value has to be typed back in by hand. Some carriers restrict SA to whitelisted devices; spoofing to one they know unlocks SA there, but may break the SIM contract or violate the ToS depending on the country. Use at your own risk.</span></div>
         <div class="kv" style="margin-top:12px"><span class="k">Current IMEI</span><span class="v" id="imeiCurrent">—</span></div>
@@ -312,6 +354,53 @@
           <button class="primary" type="submit" aria-label="Send"><svg class="i"><use href="#i-send"/></svg></button>
         </form>
         <div class="hint" id="smsLen"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================== Contacts -->
+  <section class="view" id="v-contacts" data-title="Contacts" hidden>
+    <div class="grid">
+      <div class="card span-5" id="pbListCard">
+        <div class="card-h"><div class="ico"><svg class="i"><use href="#i-contacts"/></svg></div><h2>SIM contacts</h2><span class="sub" id="pbCount"></span>
+          <div class="right"><button class="small" id="pbSelectBtn">Select</button><button class="primary small" id="pbNewBtn"><svg class="i"><use href="#i-plus"/></svg>New</button></div></div>
+        <div class="pb-selbar" id="pbSelBar" hidden>
+          <label class="pb-check"><input type="checkbox" id="pbSelAll"><span></span></label>
+          <span id="pbSelCount">0 selected</span>
+          <button class="danger small" id="pbSelDelete" disabled><svg class="i"><use href="#i-trash"/></svg>Delete</button>
+          <button class="ghost small" id="pbSelCancel">Cancel</button>
+        </div>
+        <div class="pb-tools">
+          <label class="pb-search"><svg class="i"><use href="#i-search"/></svg><input type="search" id="pbSearch" placeholder="Search name or number" autocomplete="off"></label>
+          <button class="ghost small" id="pbImportBtn" title="Import a .vcf file to the SIM"><svg class="i"><use href="#i-upload"/></svg>Import</button>
+          <a class="button ghost small" id="pbExportBtn" href="/api/contacts?a=export" download="sim-contacts.vcf" title="Download all as .vcf"><svg class="i"><use href="#i-download"/></svg>Export</a>
+          <input type="file" id="pbFile" accept=".vcf,text/vcard,text/x-vcard" hidden>
+        </div>
+        <div class="pb-usage"><div class="track"><div class="fill" id="pbUsage"></div></div><span id="pbUsageText"></span></div>
+        <div id="pbList"><div class="empty">Loading…</div></div>
+      </div>
+      <div class="card span-7" id="pbEditCard">
+        <div class="card-h"><button class="icon-btn mobile-back" id="pbBack" aria-label="Back"><svg class="i"><use href="#i-back"/></svg></button>
+          <div class="ico cyan"><svg class="i"><use href="#i-phone"/></svg></div><h2 id="pbTitle">Pick a contact</h2><span class="sub" id="pbSlot"></span>
+          <div class="right"><button class="ghost small" id="pbDelete" hidden><svg class="i"><use href="#i-trash"/></svg>Delete</button></div></div>
+        <div class="pb-empty" id="pbEmpty">
+          <div class="avatar big"><svg class="i"><use href="#i-contacts"/></svg></div>
+          <p class="lead">Contacts stored on the SIM card - the same list a phone shows under "SIM contacts". Pick one to edit, add a new one, or import a .vcf from your phone or Google Contacts.</p>
+        </div>
+        <form id="pbForm" hidden>
+          <div class="pb-head"><div class="avatar big" id="pbAvatar">A</div>
+            <div class="pb-fields">
+              <label class="field">Name<input type="text" name="name" maxlength="16" required autocomplete="off" placeholder="Up to 16 characters"><span class="hint" id="pbNameLen"></span></label>
+              <label class="field">Number<input type="text" name="number" inputmode="tel" maxlength="41" required autocomplete="off" placeholder="+49 170 1234567"></label>
+            </div></div>
+          <input type="hidden" name="index" value="0">
+          <div class="actions">
+            <button class="primary" type="submit" id="pbSave">Save to SIM</button>
+            <a class="button" id="pbSms" href="#messages" hidden><svg class="i"><use href="#i-msg"/></svg>Message</a>
+            <button type="button" id="pbCancel">Cancel</button>
+            <span class="msg" id="pbMsg"></span>
+          </div>
+        </form>
       </div>
     </div>
   </section>
@@ -477,6 +566,49 @@
         <div class="actions"><button class="danger" id="pwBtn">Change password</button><span class="msg" id="pwMsg"></span></div>
       </div>
 
+      <div class="card span-6 st-card">
+        <div class="card-h"><div class="ico green"><svg class="i"><use href="#i-data"/></svg></div><h2>Speed test</h2><span class="sub">through the router</span>
+          <div class="right"><span class="pill" id="stServer" hidden></span></div></div>
+        <div class="st-top">
+          <div class="st-res" id="stResDown"><div class="k"><span class="st-dot down"></span>Download<small>Mbps</small></div><div class="v" id="stDown">—</div></div>
+          <div class="st-res" id="stResUp"><div class="k"><span class="st-dot up"></span>Upload<small>Mbps</small></div><div class="v" id="stUp">—</div></div>
+          <div class="st-res"><div class="k">Ping<small>ms</small></div><div class="v" id="stPing">—</div><div class="d" id="stJitter"></div></div>
+        </div>
+        <div class="st-gauge" id="stGauge" data-phase="">
+          <svg viewBox="0 0 300 190" aria-hidden="true">
+            <defs>
+              <linearGradient id="stGradDown" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="#36d1ff"/></linearGradient>
+              <linearGradient id="stGradUp" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#ff6ad5"/></linearGradient>
+            </defs>
+            <path class="st-track" d="M 30 160 A 120 120 0 1 1 270 160" pathLength="1000"/>
+            <path class="st-fill" id="stFill" d="M 30 160 A 120 120 0 1 1 270 160" pathLength="1000"/>
+            <g class="st-ticks" id="stTicks"></g>
+            <g class="st-needle" id="stNeedle"><line x1="150" y1="160" x2="150" y2="64"/><circle cx="150" cy="160" r="5"/></g>
+          </svg>
+          <div class="st-live"><div class="v" id="stLive">—</div><div class="k" id="stLiveLabel">Mbps</div></div>
+        </div>
+        <div class="st-foot">
+          <button class="primary st-go" id="stBtn">GO</button>
+          <div class="st-note"><span class="msg" id="stMsg">Measured from this computer through the router, so it's the mobile link that's tested. One run moves a few hundred MB on a fast line.</span>
+            <span class="st-meta" id="stMeta"></span></div>
+        </div>
+      </div>
+
+      <div class="card span-6">
+        <div class="card-h"><div class="ico cyan"><svg class="i"><use href="#i-net"/></svg></div><h2>Ping &amp; traceroute</h2><span class="sub">from the router</span></div>
+        <form id="diagForm">
+          <label class="field">Host<div class="copy-row"><input type="text" id="diagHost" value="8.8.8.8" maxlength="253" autocomplete="off" spellcheck="false" required>
+            <select id="diagTool" style="width:auto"><option value="ping">Ping</option><option value="traceroute">Traceroute</option></select>
+            <button class="primary" type="submit" id="diagBtn">Run</button></div></label>
+        </form>
+        <div class="actions" style="margin-top:8px;flex-wrap:wrap;gap:6px">
+          <button class="small" data-diag-host="8.8.8.8">8.8.8.8 Google</button>
+          <button class="small" data-diag-host="1.1.1.1">1.1.1.1 Cloudflare</button>
+          <button class="small" data-diag-host="9.9.9.9">9.9.9.9 Quad9</button>
+        </div>
+        <pre class="console" id="diagOut" style="min-height:120px" hidden></pre>
+      </div>
+
       <div class="card span-12">
         <div class="card-h"><div class="ico cyan"><svg class="i"><use href="#i-terminal"/></svg></div><h2>SSH</h2><span class="sub">root@<span id="sshHost">—</span></span></div>
         <label class="field">With this computer's key</label>
@@ -531,6 +663,7 @@
   <a href="#overview"><svg class="i"><use href="#i-home"/></svg>Home</a>
   <a href="#cellular"><svg class="i"><use href="#i-signal"/></svg>Cellular</a>
   <a href="#messages"><svg class="i"><use href="#i-msg"/></svg>SMS</a>
+  <a href="#contacts"><svg class="i"><use href="#i-contacts"/></svg>Contacts</a>
   <a href="#wifi"><svg class="i"><use href="#i-wifi"/></svg>Wi-Fi</a>
   <a href="#devices"><svg class="i"><use href="#i-devices"/></svg>Devices</a>
   <a href="#network"><svg class="i"><use href="#i-net"/></svg>Network</a>
@@ -546,6 +679,7 @@
 <script src="/assets/wifi.js?v={{v}}"></script>
 <script src="/assets/devices.js?v={{v}}"></script>
 <script src="/assets/messages.js?v={{v}}"></script>
+<script src="/assets/contacts.js?v={{v}}"></script>
 <script src="/assets/network.js?v={{v}}"></script>
 <script src="/assets/system.js?v={{v}}"></script>
 <script src="/assets/main.js?v={{v}}"></script>

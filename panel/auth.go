@@ -140,6 +140,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   int(sessionTTL.Seconds()),
 		HttpOnly: true,
+		Secure:   r.TLS != nil, // https gets a Secure cookie; plain http must still work
 		SameSite: http.SameSiteStrictMode,
 	})
 	ok(w, map[string]bool{"logged_in": true})

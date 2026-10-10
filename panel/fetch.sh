@@ -59,7 +59,12 @@ ensure_gui_bin() {
   local bin="$_FETCH_DIR/cpe-box" stamp="$_FETCH_DIR/.release"
   if _have_go; then
     echo "Building CPE Box from source..."
-    (cd "$_FETCH_DIR" && go build -o "$bin" .) && return 0
+    # Stamp the version the same way build.sh does for releases (from the git
+    # tag, e.g. 1.0.10, or 1.0.10-3-gabc1234 past it), so the panel doesn't
+    # show the placeholder version from the source.
+    local ver
+    ver="$(git -C "$_FETCH_DIR" describe --tags --always 2>/dev/null | sed 's/^v//')"
+    (cd "$_FETCH_DIR" && go build -ldflags="-X main.appVersion=${ver:-dev}" -o "$bin" .) && return 0
     echo "Build failed - trying a prebuilt release instead."
   fi
   local asset tag

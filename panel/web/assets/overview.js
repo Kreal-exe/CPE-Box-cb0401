@@ -55,7 +55,7 @@ on('cellular', c => {
 
   $('#ovLteRsrp').innerHTML = dbm(c.rsrp);
   $('#ovNrRsrp').innerHTML = dbm(c.rsrp_5g);
-  $('#ovLteMeters').innerHTML = meterRow('RSRP', c.rsrp, 'dBm', 'rsrp') + meterRow('RSRQ', c.rsrq, 'dB', 'rsrq') + meterRow('SINR', c.snr, 'dB', 'snr');
+  $('#ovLteMeters').innerHTML = meterRow('RSRP', c.rsrp, 'dBm', 'rsrp') + meterRow('RSRQ', c.rsrq, 'dB', 'rsrq') + meterRow('SINR', c.snr, 'dB', 'snr') + meterRow('RSSI', c.rssi, 'dBm', 'rssi');
   setText('ovLteCell', [c.band_primary, c.pci ? 'PCI ' + c.pci : ''].filter(Boolean).join(' · '));
   const has5g = !!num(c.rsrp_5g);
   $('#ovNrBlock').hidden = !has5g;
@@ -82,6 +82,8 @@ function renderSim() {
     ['APN', c.apn], ['PIN', pin], ['Modem', Sources.status.data?.modem?.modem_model],
   ];
   $('#ovSim').innerHTML = kvRows(rows);
+  // Some SIMs carry no number at all - point to where it can be written.
+  if (!c.sim_number && c.sim_status === 'Ready') $('#ovSim .kv .v').innerHTML = '<a href="#cellular">Add →</a>';
 }
 
 function kvRows(rows) {
