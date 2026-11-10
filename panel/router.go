@@ -1037,6 +1037,7 @@ func getCellularInfoViaAT() (map[string]any, error) {
 		"AT+QCCID",
 		"AT+CNUM",
 		"AT+CGDCONT?",
+		`AT+QNWCFG="nr5g_meas_info"`, // read only: real NR PCI when QENG says 0
 	}, 500*time.Millisecond)
 	if err != nil {
 		return nil, err
@@ -1182,6 +1183,15 @@ func parseATCellular(raw string) map[string]any {
 			info["band_5g"] = nrBandLabel(f[9], f[8])
 		}
 		info["level"] = barsFromRSRP(f[11])
+	}
+	// v1 firmware reports PCI 0 for the NR leg; take the real one from the NR
+	// measurement report, the same source the Cells-around card uses (#4).
+	if info["pci_5g"] == "0" {
+		if a, ok := atoiDash(info["nr_arfcn"].(string)); ok {
+			if p := nrPCIFromMeas(raw, a); p > 0 {
+				info["pci_5g"] = strconv.Itoa(p)
+			}
+		}
 	}
 
 	// Aggregated CA bands (same helper the daemon path uses), else compose

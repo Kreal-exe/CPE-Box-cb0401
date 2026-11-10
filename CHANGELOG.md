@@ -14,6 +14,12 @@ Because the notes live in this file, Markdown headings work as-is — no
 `--cleanup=verbatim` needed on the tag. Everything up to the next `## vX.Y.Z`
 heading belongs to a version; use `##` for the subsections within it.
 
+## v1.0.14 — real 5G PCI on the Connection card (cb0401 v1)
+
+## Fixes
+
+- **Connection card showed `PCI 0` for the 5G cell on cb0401 v1 in NSA, while Cells around showed the real one.** The v1 firmware (RG520N-EB) reports PCI 0 for the NR leg in `AT+QENG="servingcell"`. Cells around already took the real PCI from the modem's NR measurement report (`AT+QNWCFG="nr5g_meas_info"`, the row with the same ARFCN); the Connection card read QENG only. It now reads the report too, so both cards agree. The panel only reads the report here - it doesn't switch it on. Reported in the issue tracker.
+
 ## v1.0.13 — Windows: no more sshpass dependency, block devices from the list
 
 ## New

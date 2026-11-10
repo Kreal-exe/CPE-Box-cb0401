@@ -129,6 +129,28 @@ func getCellLock() (map[string]any, error) {
 	return res, nil
 }
 
+// nrPCIFromMeas returns the PCI the NR measurement report lists for arfcn, or
+// 0. v1 firmware reports PCI 0 for a live NR cell in QENG/QCAINFO; the report
+// (arfcn,pci,rsrp,rsrq per cell, serving cell first) has the real one.
+func nrPCIFromMeas(raw string, arfcn int) int {
+	if arfcn <= 0 {
+		return 0
+	}
+	m := nrMeasRe.FindStringSubmatch(raw)
+	if m == nil {
+		return 0
+	}
+	fs := strings.Split(strings.TrimPrefix(m[2], ","), ",")
+	for i := 0; i+1 < len(fs); i += 4 {
+		if a, ok := atoiDash(fs[i]); ok && a == arfcn {
+			if p, ok := atoiDash(fs[i+1]); ok && p > 0 {
+				return p
+			}
+		}
+	}
+	return 0
+}
+
 func atoiDash(s string) (int, bool) {
 	n, err := strconv.Atoi(strings.TrimSpace(s))
 	return n, err == nil
@@ -293,18 +315,8 @@ func parseCellLock(raw string) map[string]any {
 		if band == 0 {
 			band = nrBandFromArfcn(qengNR[1])
 		}
-		if pci == 0 && arfcn > 0 {
-			if m := nrMeasRe.FindStringSubmatch(raw); m != nil {
-				fs := strings.Split(strings.TrimPrefix(m[2], ","), ",")
-				for i := 0; i+1 < len(fs); i += 4 {
-					if a, ok := atoiDash(fs[i]); ok && a == arfcn {
-						if p, ok := atoiDash(fs[i+1]); ok && p > 0 {
-							pci = p
-							break
-						}
-					}
-				}
-			}
+		if pci == 0 {
+			pci = nrPCIFromMeas(raw, arfcn)
 		}
 		if ok1 && ok2 && band > 0 && arfcn > 0 {
 			c := radioCell{RAT: "NR", Role: "PCC", Band: "n" + strconv.Itoa(band), Arfcn: arfcn, PCI: pci, Serving: true}
@@ -343,18 +355,8 @@ func parseCellLock(raw string) map[string]any {
 		}
 		// v1 firmware sometimes reports PCI 0 for a live NR cell; the NR
 		// measurement report has the real one and is already in raw.
-		if pci == 0 && arfcn > 0 {
-			if m := nrMeasRe.FindStringSubmatch(raw); m != nil {
-				fs := strings.Split(strings.TrimPrefix(m[2], ","), ",")
-				for i := 0; i+1 < len(fs); i += 4 {
-					if a, ok := atoiDash(fs[i]); ok && a == arfcn {
-						if p, ok := atoiDash(fs[i+1]); ok && p > 0 {
-							pci = p
-							break
-						}
-					}
-				}
-			}
+		if pci == 0 {
+			pci = nrPCIFromMeas(raw, arfcn)
 		}
 		if ok1 && ok2 && band > 0 && pci > 0 {
 			res["serving_nr"] = nrCell{pci, arfcn, scs, band}

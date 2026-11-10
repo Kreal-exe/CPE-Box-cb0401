@@ -217,6 +217,34 @@ func TestParseATCellularNSA_band0FromArfcn(t *testing.T) {
 	}
 }
 
+// cb0401 v1 (RG520N-EB, ROM 3.0.116) in NSA reports PCI 0 for the NR leg in
+// QENG (issue #4). The NR measurement report has the real PCI for the same
+// ARFCN; the Connection card must show it, as the Cells-around card does.
+func TestParseATCellularNSA_pci0FromMeasReport(t *testing.T) {
+	raw := "AT+QENG=\"servingcell\"\r\n" +
+		"+QENG: \"servingcell\",\"NOCONN\"\r\n" +
+		"+QENG: \"LTE\",\"FDD\",219,10,7EA03,350,1850,3,5,5,CA,-79,-13,-47,15,11,-150,-\r\n" +
+		"+QENG: \"NR5G-NSA\",219,10,0,-92,200,-11,647040,0,0,1\r\n\r\nOK\r\n" +
+		"AT+QNWCFG=\"nr5g_meas_info\"\r\n" +
+		"+QNWCFG: \"nr5g_meas_info\",1,647040,74,-92,-11,647040,75,-101,-14\r\n\r\nOK\r\n"
+	info := parseATCellular(raw)
+	if got, _ := info["pci_5g"].(string); got != "74" {
+		t.Errorf("pci_5g = %q, want 74", got)
+	}
+	if got, _ := info["band_5g"].(string); got != "n78" {
+		t.Errorf("band_5g = %q, want n78", got)
+	}
+	if got, _ := info["snr_5g"].(string); got != "20" {
+		t.Errorf("snr_5g = %q, want 20", got)
+	}
+
+	// Report off (or no row for this ARFCN): keep what QENG said.
+	off := strings.Replace(raw, `"nr5g_meas_info",1,647040,74,-92,-11,647040,75,-101,-14`, `"nr5g_meas_info",0`, 1)
+	if got, _ := parseATCellular(off)["pci_5g"].(string); got != "0" {
+		t.Errorf("report off: pci_5g = %q, want 0", got)
+	}
+}
+
 func TestNormalizeNrSinr(t *testing.T) {
 	cases := map[string]string{
 		"195":  "19.5", // cb0401 v1 reports NR SINR in 0.1 dB
